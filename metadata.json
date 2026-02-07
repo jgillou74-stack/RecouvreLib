@@ -1,6 +1,7 @@
-
 {
   "requestFramePermissions": [
     "camera"
-  ]
+  ],
+  "name": "RecouvreLib",
+  "description": ""
 }

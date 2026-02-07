@@ -5,9 +5,7 @@ import { MockAuthProvider } from './components/MockAuth';
 import App from './App';
 
 const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
-}
+if (!rootElement) throw new Error("Root not found");
 
 const root = createRoot(rootElement);
 
