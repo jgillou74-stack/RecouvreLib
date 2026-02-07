@@ -37,13 +37,41 @@ export const generateAccountingReport = async (data: {
  * 2. OCR Planning (Extraction de rendez-vous)
  */
 export const extractAppointmentsFromImage = async (base64Image: string): Promise<ScanResult[]> => {
-    // Configuration de la réponse structurée en JSON
     const model = genAI.getGenerativeModel({ 
         model: "gemini-1.5-flash",
         generationConfig: {
             responseMimeType: "application/json",
         }
     });
+
+    // Prompt plus précis et permissif
+    const prompt = `Analyse cette image d'agenda ou de planning. 
+    Extrais TOUS les rendez-vous visibles. 
+    Pour chaque rendez-vous, fournis : patientName, day (si visible, sinon met "2026-02-08"), time, et amount (si visible).
+    Si tu n'es pas sûr du nom, écris ce que tu lis.
+    Format JSON attendu: [{"patientName": "...", "day": "...", "time": "...", "amount": 0}]
+    Ne réponds RIEN d'autre que le JSON.`;
+
+    try {
+        const imageData = base64Image.includes('base64,') 
+            ? base64Image.split(',')[1] 
+            : base64Image;
+
+        const result = await model.generateContent([
+            { inlineData: { mimeType: "image/jpeg", data: imageData } },
+            { text: prompt }
+        ]);
+
+        const textResponse = result.response.text();
+        console.log("Réponse brute de l'IA:", textResponse); // Pour déboguer dans la console Vercel
+
+        const parsed = JSON.parse(textResponse.replace(/```json|```/g, "").trim());
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+        console.error("Erreur OCR détaillée:", error);
+        return [];
+    }
+};
 
     const prompt = `Extrais les rendez-vous de cette image. 
     Format attendu (ARRAY JSON): [{"patientName": "Nom", "day": "YYYY-MM-DD", "time": "HH:mm", "amount": 50}]`;
