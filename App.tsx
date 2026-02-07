@@ -90,30 +90,45 @@ const App: React.FC = () => {
     }
   };
 
-  const captureAndAnalyze = async () => {
-    if (!videoRef.current) return;
-    setIsLoading(true);
+ const captureAndAnalyze = async () => {
+  if (!videoRef.current) return;
+  setIsLoading(true);
 
+  try {
     const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0);
-    const base64 = canvas.toDataURL('image/jpeg');
+    // On force une résolution raisonnable pour l'IA (max 1024px)
+    const scale = Math.min(1, 1024 / videoRef.current.videoWidth);
+    canvas.width = videoRef.current.videoWidth * scale;
+    canvas.height = videoRef.current.videoHeight * scale;
     
-    // Arrêt caméra
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    }
+    
+    // On utilise une qualité de 0.8 pour réduire le poids
+    const base64 = canvas.toDataURL('image/jpeg', 0.8);
+    
+    // Arrêt de la caméra
     const stream = videoRef.current.srcObject as MediaStream;
-    stream.getTracks().forEach(t => t.stop());
+    stream?.getTracks().forEach(t => t.stop());
     setIsScanning(false);
 
-    try {
-      const results = await extractAppointmentsFromImage(base64);
+    // Extraction des données
+    const results = await extractAppointmentsFromImage(base64);
+    
+    if (!results || results.length === 0) {
+      alert("L'IA n'a pas détecté de texte lisible. Essayez de vous rapprocher.");
+    } else {
       setScanResults(results);
-    } catch (err) {
-      alert("L'IA n'a pas pu analyser l'image.");
-    } finally {
-      setIsLoading(false);
     }
-  };
+  } catch (err) {
+    console.error("Erreur capture:", err);
+    alert("Erreur lors de l'analyse. Vérifiez votre connexion.");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleGenerateReminders = async () => {
     const tomorrow = new Date();
