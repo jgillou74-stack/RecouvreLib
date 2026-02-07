@@ -10,10 +10,41 @@ const genAI = new GoogleGenerativeAI(API_KEY);
  * C'est cette fonction qui doit être ultra-robuste
  */
 export const extractAppointmentsFromImage = async (base64Image: string): Promise<ScanResult[]> => {
-    const model = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash",
-        generationConfig: { responseMimeType: "application/json" }
-    });
+    // Utilisation de 1.5-flash qui est le plus performant pour l'OCR
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const prompt = `Analyse cette photo de planning. 
+    Extrais les rendez-vous sous forme de tableau JSON.
+    Chaque objet doit avoir : patientName, day (YYYY-MM-DD), time (HH:mm).
+    RETOURNE UNIQUEMENT LE JSON. Ne dis pas "Voici le résultat".`;
+
+    try {
+        // On s'assure que le base64 est propre
+        const imageData = base64Image.split(',')[1] || base64Image;
+
+        const result = await model.generateContent([
+            {
+                inlineData: {
+                    mimeType: "image/jpeg",
+                    data: imageData
+                }
+            },
+            { text: prompt }
+        ]);
+
+        const response = await result.response;
+        const text = response.text();
+        
+        // Nettoyage radical des balises Markdown
+        const jsonContent = text.replace(/```json/g, "").replace(/```/g, "").trim();
+        
+        console.log("Contenu extrait :", jsonContent);
+        return JSON.parse(jsonContent);
+    } catch (error) {
+        console.error("Erreur OCR détaillée :", error);
+        return [];
+    }
+};
 
     const prompt = `Analyse cette image d'agenda médical. 
     Extrais TOUS les rendez-vous. 
